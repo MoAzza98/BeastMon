@@ -11,6 +11,7 @@ export type AbilityTrigger =
 export interface AbilityResult {
   modified_atk?: number
   modified_def?: number
+  new_speed_boost_stacks?: number  // used by speed_boost ON_TURN_END
   block_status?: boolean
   block_damage?: boolean
   survive_lethal?: boolean

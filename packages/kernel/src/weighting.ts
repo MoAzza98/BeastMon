@@ -1,5 +1,5 @@
 // STUB — implemented in Session 5
-import type { BattleMon, Move } from './types.js'
+import type { BattleMon, BeastMonType, Move } from './types.js'
 
 export function isAhead(_self: BattleMon, _target: BattleMon): boolean {
   throw new Error('TODO')
@@ -34,7 +34,7 @@ export function computeMoveWeight(
 export function computeAllWeights(
   _self: BattleMon,
   _target: BattleMon,
-  _getTypeEffectiveness: (moveType: string, defType: string) => number
+  _getTypeEffectiveness: (moveType: BeastMonType, defType: BeastMonType) => number
 ): [number, number, number, number] {
   throw new Error('TODO')
 }

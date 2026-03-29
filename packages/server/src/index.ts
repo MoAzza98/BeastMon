@@ -6,6 +6,4 @@ app.use(express.json())
 
 const PORT = 3000
 
-app.listen(PORT, () => {
-  console.log(`BeastMon server running on port ${PORT}`)
-})
+app.listen(PORT)

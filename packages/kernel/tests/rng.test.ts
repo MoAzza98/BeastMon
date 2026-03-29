@@ -14,8 +14,8 @@ describe('RNG', () => {
     it('different seeds produce different sequences', () => {
       const rng1 = new RNG(1)
       const rng2 = new RNG(2)
-      const draws1 = Array.from({ length: 20 }, () => rng1.drawInt(0, 999))
-      const draws2 = Array.from({ length: 20 }, () => rng2.drawInt(0, 999))
+      const draws1 = Array.from({ length: 20 }, () => rng1.drawVariance())
+      const draws2 = Array.from({ length: 20 }, () => rng2.drawVariance())
       expect(draws1).not.toEqual(draws2)
     })
   })

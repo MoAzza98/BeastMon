@@ -12,7 +12,7 @@ export class RNG {
     }
   }
 
-  drawInt(min: number, max: number): number {
+  private drawInt(min: number, max: number): number {
     return Math.floor(this.next() * (max - min + 1)) + min
   }
 

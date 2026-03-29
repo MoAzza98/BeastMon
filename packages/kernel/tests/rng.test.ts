@@ -7,7 +7,7 @@ describe('RNG', () => {
       const rng1 = new RNG(12345)
       const rng2 = new RNG(12345)
       for (let i = 0; i < 100; i++) {
-        expect(rng1.drawInt(0, 99)).toBe(rng2.drawInt(0, 99))
+        expect(rng1.drawAccuracy()).toBe(rng2.drawAccuracy())
       }
     })
 
@@ -119,12 +119,12 @@ describe('RNG', () => {
       const N = 37
 
       const rngA = new RNG(seed)
-      for (let i = 0; i < N; i++) rngA.drawInt(0, 999)
-      const drawN_plus_1_A = rngA.drawInt(0, 999)
+      for (let i = 0; i < N; i++) rngA.drawVariance()
+      const drawN_plus_1_A = rngA.drawVariance()
 
       const rngB = new RNG(seed)
-      for (let i = 0; i < N; i++) rngB.drawInt(0, 999)
-      const drawN_plus_1_B = rngB.drawInt(0, 999)
+      for (let i = 0; i < N; i++) rngB.drawVariance()
+      const drawN_plus_1_B = rngB.drawVariance()
 
       expect(drawN_plus_1_A).toBe(drawN_plus_1_B)
     })

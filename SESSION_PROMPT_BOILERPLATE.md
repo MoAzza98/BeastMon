@@ -10,16 +10,23 @@ Replace the bracketed values for each session.
 ```
 You are working on the BeastMon project. I have attached your session document which contains everything you need.
 
-Before doing anything else:
+Before writing any code:
 1. Read the attached session document completely
 2. Read ARCHITECTURE.md in the project root
 3. Read CLAUDE.md in the project root
-4. Read TEST_SPEC.md in the project root for your session's test cases
+4. Read TEST_SPEC.md in the project root
 
-Your session is: [SESSION NAME e.g. "Session 0 — Skeleton"]
-Your branch is: [BRANCH NAME e.g. "session/00-skeleton"]
+Then produce a written implementation plan containing:
+- What you will build and which files you will create or modify
+- Which files you will not touch and why
+- The function signatures you intend to export, with types
+- Any ambiguities or edge cases you have identified before starting
+- Confirmation that your approach contains no floating point, no magic numbers, and no speculative logic
 
-Do not begin any implementation until you have confirmed you have read all four documents. Summarise in one sentence what your session must deliver, and one sentence what it must not touch. Then proceed.
+Do not write any code until I have reviewed and approved your plan. Wait for my go-ahead.
+
+Your session is: [SESSION NAME]
+Your branch is: [BRANCH NAME]
 ```
 
 ---

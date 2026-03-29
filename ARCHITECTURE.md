@@ -99,10 +99,34 @@ beastmon/
 | 5 | Weighting | ⬜ Todo | `weighting.ts`, `weighting.test.ts` |
 | 6 | Abilities | ⬜ Todo | `abilities.ts`, `abilities.test.ts` |
 | 7 | Kernel | ⬜ Todo | `kernel.ts`, `kernel.test.ts` |
-| 8 | Server | ⬜ Todo | `store.ts`, `server/index.ts` |
+| 8 | Server | ⬜ Todo | `store.ts`, `server/index.ts` — see Session 8 notes below |
 | 9 | Frontend | ⬜ Todo | All client files |
 
 Sessions 4, 5, and 6 are independent of each other and can be completed in any order after Session 3.
+
+### Session 8 — Server Implementation Notes
+
+Session 8 builds the MVP server. It must be implemented in a way that does not foreclose future VRF and smart contract integration. The following constraints apply:
+
+**Seed handling — receive, never generate.**
+The `POST /battle` endpoint accepts `seed` as an external parameter. The server must never generate the seed internally (e.g. `Math.random()`). In production the seed will be delivered by Chainlink VRF. The server is a receiver and executor, not a source of randomness.
+
+**Battle ID — accept external IDs.**
+The current MVP generates a UUID v4 as `battle_id`. Implement this as an optional parameter: if the caller supplies a `battle_id`, use it; if not, generate a UUID. This allows the future contract layer to supply a VRF request ID or transaction hash as the canonical battle ID without changing the API shape.
+
+**Species validation — enforce at the boundary.**
+The server must validate that `side_a` and `side_b` are known species IDs before passing them to the kernel. Do not let unknown IDs reach `runBattle()`. In future, this validation layer will also verify species selections against an on-chain commitment. The hook for that check must exist here, even if it only does a simple ID lookup for MVP.
+
+**No battle logic in the server.**
+The server calls `runBattle()` and stores the result. It must not implement any rules, compute any damage, or modify the artifact. All truth comes from the kernel.
+
+**What the future integration layer will add above this server (not in scope for Session 8, awareness only):**
+- VRF request/callback handling — seed arrives from Chainlink, not from a client POST body
+- On-chain species commitment verification — species IDs must match what was committed before the seed was revealed
+- Payout logic — winner from artifact triggers contract settlement
+- Round/match structure — a layer above individual battles tracking wagers and participants
+
+Session 8 does not implement any of the above. It must only avoid making them impossible to add.
 
 ---
 
@@ -603,3 +627,44 @@ The battle is over. No gameplay reason to continue modifying state on a fainted 
 
 **Why does end-of-turn order use the same speed tie draw type?**
 Consistency. One tiebreak mechanism in the whole system. Fewer special cases.
+
+---
+
+## Future Integration Points
+
+This section documents where VRF and smart contract integration will connect to the existing system. Nothing here is in scope for any MVP session. It exists so that MVP sessions do not accidentally close off these integration paths.
+
+### Seed Derivation from VRF
+
+The kernel accepts `seed: number` (a 32-bit unsigned integer). Chainlink VRF delivers a `uint256`. A pinned, deterministic derivation function must be defined before launch:
+
+```
+seed_32 = vrf_uint256 % 0xFFFFFFFF
+```
+
+The exact formula is TBD and must be locked before production. Once locked it cannot change — any change breaks re-verification of historical battles. This derivation happens outside the kernel, in the contract integration layer.
+
+### Battle ID Sourcing
+
+MVP generates a UUID v4 as `battle_id`. In production, `battle_id` will be derived from the VRF request ID or transaction hash supplied by the contract. The server API accepts an optional external `battle_id` to accommodate this without an API change.
+
+### Species Commitment
+
+In a wagering product, players commit to species selections before the seed is revealed. The server validation layer (Session 8) will grow to verify that submitted species IDs match an on-chain commitment. The kernel is unaffected — it only cares that species IDs are valid, not how they were selected.
+
+### Contract Integration Layer (Future Package)
+
+A future `packages/contracts` workspace will contain:
+- Solidity contracts for wager management, VRF integration, and payout settlement
+- A contract event listener that feeds VRF-delivered seeds into the server
+- On-chain verification of the battle artifact winner
+
+This package does not exist in MVP. The kernel, server, and client are designed to be unmodified when it is added.
+
+### What the Kernel Guarantees to the Contract Layer
+
+- Same seed + same species IDs + same version strings = identical `winner` field in the artifact, always
+- The artifact is fully reproducible from public inputs
+- No server-side hidden state affects the outcome
+
+These properties are what make on-chain settlement trustless. The kernel must never violate them.

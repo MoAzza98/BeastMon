@@ -1,0 +1,15 @@
+{
+  "name": "beastmon",
+  "private": true,
+  "workspaces": [
+    "packages/kernel",
+    "packages/server",
+    "packages/client"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "dev:server": "npm run dev --workspace=packages/server",
+    "dev:client": "npm run dev --workspace=packages/client"
+  }
+}

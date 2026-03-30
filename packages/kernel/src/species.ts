@@ -12,7 +12,7 @@ export const SPECIES = {
     ability_id: 'speed_boost',
     signature_move_1: 'inferno_rush',
     signature_move_2: 'searing_fang',
-    variable_pool: ['fire_blast', 'flamethrower', 'ember', 'will_o_wisp', 'aqua_jet', 'frost_breath'] as const,
+    variable_pool: ['fire_blast', 'flamethrower', 'ember', 'will_o_wisp', 'aqua_jet', 'frost_breath'],
   },
   thornvine: {
     species_id: 'thornvine',
@@ -25,7 +25,7 @@ export const SPECIES = {
     ability_id: 'sturdy',
     signature_move_1: 'thorn_lash',
     signature_move_2: 'spore_cloud',
-    variable_pool: ['solar_strike', 'razor_leaf', 'vine_whip', 'stun_spore', 'hydro_pump', 'ice_beam'] as const,
+    variable_pool: ['solar_strike', 'razor_leaf', 'vine_whip', 'stun_spore', 'hydro_pump', 'ice_beam'],
   },
   torrentis: {
     species_id: 'torrentis',
@@ -38,7 +38,7 @@ export const SPECIES = {
     ability_id: 'intimidate',
     signature_move_1: 'hydro_slam',
     signature_move_2: 'riptide',
-    variable_pool: ['hydro_pump', 'water_pulse', 'aqua_jet', 'ice_beam', 'frost_breath', 'stun_spore'] as const,
+    variable_pool: ['hydro_pump', 'water_pulse', 'aqua_jet', 'ice_beam', 'frost_breath', 'stun_spore'],
   },
   glacior: {
     species_id: 'glacior',
@@ -51,7 +51,7 @@ export const SPECIES = {
     ability_id: 'sniper',
     signature_move_1: 'glacial_spike',
     signature_move_2: 'blizzard_rush',
-    variable_pool: ['ice_beam', 'frost_breath', 'icy_wind', 'dragon_pulse', 'water_pulse', 'will_o_wisp'] as const,
+    variable_pool: ['ice_beam', 'frost_breath', 'icy_wind', 'dragon_pulse', 'water_pulse', 'will_o_wisp'],
   },
   drakonyx: {
     species_id: 'drakonyx',
@@ -64,7 +64,7 @@ export const SPECIES = {
     ability_id: 'huge_power',
     signature_move_1: 'dragon_rage',
     signature_move_2: 'scale_storm',
-    variable_pool: ['dragon_pulse', 'outrage', 'draco_freeze', 'fire_blast', 'ice_beam', 'stun_spore'] as const,
+    variable_pool: ['dragon_pulse', 'outrage', 'draco_freeze', 'fire_blast', 'ice_beam', 'stun_spore'],
   },
 } satisfies Record<string, Species>
 

@@ -68,6 +68,7 @@ describe('Moves', () => {
       if (move.status_application_mode === 'rolled') {
         expect(move.status_proc_numerator).not.toBeNull()
         expect(move.status_proc_denominator).not.toBeNull()
+        // Non-null safe: status_application_mode === 'rolled' guarantees these fields are non-null per Move schema
         expect(move.status_proc_numerator!).toBeGreaterThan(0)
         expect(move.status_proc_denominator!).toBeGreaterThan(0)
         expect(move.status_proc_numerator!).toBeLessThan(move.status_proc_denominator!)

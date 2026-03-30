@@ -1,5 +1,3 @@
-// STUB — implemented in Session 2
-
 export type BeastMonType = 'fire' | 'grass' | 'water' | 'ice' | 'dragon'
 export type MoveCategory = 'damage' | 'damage_plus_status' | 'pure_status'
 export type StatusEffect = 'burn' | 'paralysis' | 'freeze'
@@ -50,26 +48,25 @@ export interface BattleMon {
   speed_boost_stacks: number
 }
 
-export type EventType =
+export type BattleEventType =
   | 'BATTLE_START'
   | 'MOVE_SELECTED'
   | 'ACTION_FROZEN_FAILED'
   | 'ACTION_PARALYSIS_FAILED'
   | 'MOVE_MISSED'
   | 'DAMAGE_DEALT'
-  | 'STATUS_APPLIED'
-  | 'STATUS_FAILED'
   | 'CRIT'
   | 'TYPE_SUPER_EFFECTIVE'
   | 'TYPE_RESISTED'
   | 'TYPE_IMMUNE'
+  | 'STATUS_APPLIED'
+  | 'STATUS_FAILED'
   | 'BURN_DAMAGE'
   | 'MON_FAINTED'
   | 'BATTLE_END'
 
 export interface BattleEvent {
-  turn: number
-  event_type: EventType
+  event_type: BattleEventType
   actor_side: Side | null
   payload: Record<string, unknown>
 }

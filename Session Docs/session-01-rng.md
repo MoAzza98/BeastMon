@@ -59,7 +59,7 @@ export class RNG {
 
   // internal — used only by named draw methods below
   // returns a uniform integer in [min, max] inclusive
-  drawInt(min: number, max: number): number {
+  private drawInt(min: number, max: number): number {
     return Math.floor(this.next() * (max - min + 1)) + min
   }
 
@@ -130,6 +130,7 @@ import { RNG } from '../src/rng.js'
 
 - Using `Math.random()` anywhere — this is not seeded and breaks determinism
 - Exposing `next()` as a public method
+- Exposing `drawInt` as a public method — it must be `private`, enforced by TypeScript
 - Having any named draw method call `next()` directly instead of going through `drawInt`
 - Returning floats from any named draw method
 - Importing from any other file in the project

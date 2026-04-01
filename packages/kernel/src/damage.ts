@@ -13,24 +13,6 @@ export function computeEffectiveDef(mon: BattleMon): number {
   return Math.max(1, mon.base_def)
 }
 
-export function computeEffectiveSpeed(mon: BattleMon): number {
-  const s1 = mon.base_speed
-
-  const paraMulFp =
-    mon.status === 'paralysis'
-      ? CONSTANTS.PARA_SPEED_MUL
-      : CONSTANTS.FIXED_POINT_DENOM
-  const s2 = Math.floor((s1 * paraMulFp) / CONSTANTS.FIXED_POINT_DENOM)
-
-  const speedBoostMulFp = Math.min(
-    CONSTANTS.SPEED_BOOST_BASE + CONSTANTS.SPEED_BOOST_PER_STACK * mon.speed_boost_stacks,
-    CONSTANTS.SPEED_BOOST_CAP
-  )
-  const s3 = Math.floor((s2 * speedBoostMulFp) / CONSTANTS.FIXED_POINT_DENOM)
-
-  return Math.max(1, s3)
-}
-
 export function computeDamage(
   attacker: BattleMon,
   defender: BattleMon,

@@ -19,7 +19,7 @@ function makeMon(overrides: Partial<BattleMon>): BattleMon {
     base_def: 100,
     base_speed: 100,
     ability_id: 'none',
-    moveset: [] as unknown as [Move, Move, Move, Move],
+    moveset: [] as unknown as [Move, Move, Move, Move], // cast required: moveset is not exercised by weighting functions
     status: null,
     speed_boost_stacks: 0,
     ...overrides,

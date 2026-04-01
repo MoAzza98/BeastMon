@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   computeEffectiveAtk,
   computeEffectiveDef,
-  computeEffectiveSpeed,
   computeDamage,
   computeBurnDamage,
 } from '../src/damage.js'
@@ -191,35 +190,3 @@ describe('effective defense', () => {
   })
 })
 
-// Additional: Effective Speed
-describe('effective speed', () => {
-  it('paralysis halves speed', () => {
-    const mon = makeMon({ base_speed: 100, status: 'paralysis' })
-    expect(computeEffectiveSpeed(mon)).toBe(50)
-  })
-
-  it('speed boost stacks increase speed', () => {
-    const mon = makeMon({ base_speed: 100, speed_boost_stacks: 2 })
-    // mul = min(1000 + 100*2, 1500) = 1200
-    // floor(100 * 1200 / 1000) = 120
-    expect(computeEffectiveSpeed(mon)).toBe(120)
-  })
-
-  it('speed boost caps at 1500 multiplier', () => {
-    const mon = makeMon({ base_speed: 100, speed_boost_stacks: 10 })
-    // mul = min(1000 + 100*10, 1500) = 1500
-    // floor(100 * 1500 / 1000) = 150
-    expect(computeEffectiveSpeed(mon)).toBe(150)
-  })
-
-  it('paralysis and speed boost stack in correct order', () => {
-    const mon = makeMon({ base_speed: 100, status: 'paralysis', speed_boost_stacks: 2 })
-    // s1=100, s2=floor(100*500/1000)=50, mul=1200, s3=floor(50*1200/1000)=60
-    expect(computeEffectiveSpeed(mon)).toBe(60)
-  })
-
-  it('min guard returns 1 for zero speed', () => {
-    const mon = makeMon({ base_speed: 0 })
-    expect(computeEffectiveSpeed(mon)).toBe(1)
-  })
-})

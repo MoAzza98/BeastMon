@@ -67,7 +67,7 @@ export type BattleEventType =
 
 export interface BattleEvent {
   event_type: BattleEventType
-  actor_side: Side | null
+  actor_side?: Side
   payload: Record<string, unknown>
 }
 

@@ -34,6 +34,7 @@ function handleHugePower(
   context: AbilityContext
 ): AbilityResult {
   if (trigger !== 'ON_BATTLE_START') return {}
+  // kernel guarantees self is present when firing ON_BATTLE_START
   const self = context.self!
   return { modified_atk: self.base_atk * 2 }
 }
@@ -43,6 +44,7 @@ function handleIntimidate(
   context: AbilityContext
 ): AbilityResult {
   if (trigger !== 'ON_BATTLE_START') return {}
+  // kernel guarantees opponent is present when firing ON_BATTLE_START
   const opponent = context.opponent!
   const reduction = Math.floor(opponent.base_atk / 3)
   return { modified_atk: opponent.base_atk - reduction }
@@ -53,6 +55,7 @@ function handleSpeedBoost(
   context: AbilityContext
 ): AbilityResult {
   if (trigger !== 'ON_TURN_END') return {}
+  // kernel guarantees self is present when firing ON_TURN_END
   const current = context.self!.speed_boost_stacks
   const nextStacks = current + 1
   const nextMul = CONSTANTS.SPEED_BOOST_BASE + CONSTANTS.SPEED_BOOST_PER_STACK * nextStacks
@@ -65,6 +68,7 @@ function handleSturdy(
   context: AbilityContext
 ): AbilityResult {
   if (trigger !== 'ON_SURVIVE_LETHAL') return {}
+  // kernel guarantees self is present when firing ON_SURVIVE_LETHAL
   const self = context.self!
   return { survive_lethal: self.current_hp === self.max_hp }
 }
@@ -85,6 +89,7 @@ function handleLowHpBoost(
   context: AbilityContext
 ): AbilityResult {
   if (trigger !== 'ON_BEFORE_DAMAGE') return {}
+  // kernel guarantees self and move are present when firing ON_BEFORE_DAMAGE
   const self = context.self!
   const move = context.move!
   const isLowHP = self.current_hp * 4 <= self.max_hp
@@ -100,6 +105,7 @@ function handleFireImmunity(
   context: AbilityContext
 ): AbilityResult {
   if (trigger !== 'ON_BEFORE_DAMAGE') return {}
+  // kernel guarantees move is present when firing ON_BEFORE_DAMAGE
   if (context.move!.type === 'fire') {
     return { block_damage: true }
   }

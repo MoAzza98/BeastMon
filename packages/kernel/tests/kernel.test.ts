@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { runBattle } from '../src/kernel.js'
-import type { KernelInputs, BattleArtifact } from '../src/types.js'
+import type { KernelInputs } from '../src/types.js'
 
 // ---------------------------------------------------------------------------
 // Shared test inputs — embrak (fire/speed_boost) vs drakonyx (dragon/huge_power)
@@ -80,7 +80,7 @@ describe('7.2 Artifact structure', () => {
     const artifact = runBattle(testInputs)
     const fainted = artifact.events.find(e => e.event_type === 'MON_FAINTED')
     expect(fainted).toBeDefined()
-    const faintedSide = fainted!.payload['side'] as string
+    const faintedSide = fainted!.payload['side'] as string // defined: asserted above
     const expectedWinner = faintedSide === 'a' ? 'b' : 'a'
     expect(artifact.winner).toBe(expectedWinner)
   })

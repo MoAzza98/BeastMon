@@ -24,11 +24,11 @@ function rollVariableMoves(rng: RNG, species: Species): [Move, Move] {
   const pool = [...species.variable_pool]
 
   const i1 = rng.drawVariableMove1()
-  const moveId1 = pool[i1]!
+  const moveId1 = pool[i1]! // safe: i1 is drawn from [0,5], pool has 6 elements
   pool.splice(i1, 1)
 
   const i2 = rng.drawVariableMove2()
-  const moveId2 = pool[i2]!
+  const moveId2 = pool[i2]! // safe: i2 is drawn from [0,4], pool has 5 elements after splice
 
   return [getMoveById(moveId1), getMoveById(moveId2)]
 }
@@ -272,6 +272,7 @@ function selectMoveForSide(
     selectedSlot = selectMove([0, 0, 0, 0], draw)
   }
 
+  // safe: selectedSlot is 0–3, moveset is a fixed 4-tuple
   return { move: self.moveset[selectedSlot]!, slot: selectedSlot }
 }
 
@@ -523,6 +524,8 @@ export function runBattle(inputs: KernelInputs): BattleArtifact {
     seed: inputs.seed,
     side_a_species_id: inputs.side_a_species_id,
     side_b_species_id: inputs.side_b_species_id,
+    // winner is always assigned before the loop exits — every break path sets it
+    // via resolveAction or end-of-turn burn termination
     winner: winner!,
     total_turns: turn,
     events,

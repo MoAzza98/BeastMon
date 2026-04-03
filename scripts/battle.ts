@@ -1,5 +1,5 @@
 import { runBattle } from '../packages/kernel/src/index.js'
-import { SPECIES } from '../packages/kernel/src/species.js'
+import { SPECIES, getSpeciesById } from '../packages/kernel/src/species.js'
 import type { BattleEvent, KernelInputs } from '../packages/kernel/src/types.js'
 
 // ---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ function buildInputs(seed: number, a: string, b: string): KernelInputs {
 // Event printer
 // ---------------------------------------------------------------------------
 
-function printEvent(event: BattleEvent): void {
+function printEvent(event: BattleEvent, getName: (side: string) => string): void {
   const p = event.payload
   const side = event.actor_side !== undefined ? `[${event.actor_side}]` : ''
 
@@ -113,7 +113,7 @@ function printEvent(event: BattleEvent): void {
       break
 
     case 'CRIT':
-      console.log(`${YELLOW}${side} Critical hit!${RESET}`)
+      console.log(`${YELLOW}${side} A critical hit!${RESET}`)
       break
 
     case 'TYPE_SUPER_EFFECTIVE':
@@ -128,39 +128,116 @@ function printEvent(event: BattleEvent): void {
       console.log(`${DIM}${side} It had no effect!${RESET}`)
       break
 
-    case 'MON_FAINTED':
-      console.log(`${BOLD}${p['side'] as string} fainted!${RESET}`)
+    case 'MON_FAINTED': {
+      const faintedSide = p['side'] as string
+      console.log(`${BOLD}${getName(faintedSide)} fainted!${RESET}`)
       break
+    }
 
-    case 'MOVE_MISSED':
-      console.log(`${DIM}${side} ${p['move_id'] as string} missed!${RESET}`)
+    case 'MOVE_MISSED': {
+      const actorSide = event.actor_side as string
+      console.log(`${DIM}${side} ${getName(actorSide)}'s attack missed!${RESET}`)
       break
+    }
 
-    case 'STATUS_APPLIED':
+    case 'STATUS_APPLIED': {
+      const targetSide = p['target_side'] as string
+      const status = p['status'] as string
+      let statusMsg: string
+      if (status === 'burn') {
+        statusMsg = `${getName(targetSide)} was burned!`
+      } else if (status === 'paralysis') {
+        statusMsg = `${getName(targetSide)} was paralyzed! It may be unable to move!`
+      } else if (status === 'freeze') {
+        statusMsg = `${getName(targetSide)} was frozen solid!`
+      } else {
+        statusMsg = `${getName(targetSide)} was afflicted with ${status}!`
+      }
+      console.log(`${YELLOW}${side} ${statusMsg}${RESET}`)
+      break
+    }
+
+    case 'STATUS_FAILED': {
+      const reason = p['reason'] as string
+      const failTargetSide = p['target_side'] as string
+      let failMsg: string
+      if (reason === 'already_statused') {
+        failMsg = `But it already has a status condition — it failed!`
+      } else if (reason === 'proc_failed') {
+        failMsg = `The status effect didn't take hold.`
+      } else if (reason === 'immunity_ability') {
+        failMsg = `${getName(failTargetSide)}'s ability protected it from the status!`
+      } else if (reason === 'type_immunity') {
+        failMsg = `${getName(failTargetSide)} is immune to that status!`
+      } else {
+        failMsg = `Status failed: ${reason}`
+      }
+      console.log(`${DIM}${side} ${failMsg}${RESET}`)
+      break
+    }
+
+    case 'ACTION_FROZEN_FAILED': {
+      const frozenSide = event.actor_side as string
+      console.log(`${YELLOW}${side} ${getName(frozenSide)} is frozen solid and can't move!${RESET}`)
+      break
+    }
+
+    case 'ACTION_PARALYSIS_FAILED': {
+      const paraSide = event.actor_side as string
+      console.log(`${YELLOW}${side} ${getName(paraSide)} is paralyzed! It can't move!${RESET}`)
+      break
+    }
+
+    case 'BURN_DAMAGE': {
+      const burnSide = event.actor_side as string
       console.log(
-        `${YELLOW}${side} Applied ${p['status'] as string} to ${p['target_side'] as string}${RESET}`
+        `${RED}${side} ${getName(burnSide)} is hurt by its burn! Damage: ${p['damage'] as number}${RESET} ${DIM}(${p['remaining_hp'] as number} HP remaining)${RESET}`
       )
       break
+    }
 
-    case 'STATUS_FAILED':
+    case 'THAW_SUCCESS': {
+      const thawSide = p['actor_side'] as string
+      console.log(`${YELLOW}${getName(thawSide)} thawed out!${RESET}`)
+      break
+    }
+
+    case 'ABILITY_TRIGGERED': {
+      const abilityId = p['ability_id'] as string
+      const abilityActorSide = p['actor_side'] as string
+      const affectedSide = p['affected_side'] as string
+      const oldValue = p['old_value'] as number
+      const newValue = p['new_value'] as number
+      if (abilityId === 'huge_power') {
+        console.log(
+          `${YELLOW}${getName(abilityActorSide)}'s Huge Power activated! Its Attack surged! (${oldValue} → ${newValue})${RESET}`
+        )
+      } else if (abilityId === 'intimidate') {
+        console.log(
+          `${YELLOW}${getName(abilityActorSide)}'s Intimidate triggered! ${getName(affectedSide)}'s Attack fell! (${oldValue} → ${newValue})${RESET}`
+        )
+      } else {
+        console.log(
+          `${YELLOW}${getName(abilityActorSide)}'s ${abilityId} triggered! (${oldValue} → ${newValue})${RESET}`
+        )
+      }
+      break
+    }
+
+    case 'STURDY_ACTIVATED': {
+      const sturdySide = p['side'] as string
+      console.log(`${YELLOW}${BOLD}${getName(sturdySide)} endured the hit with Sturdy! It hung on with 1 HP!${RESET}`)
+      break
+    }
+
+    case 'SPEED_BOOST_STACKED': {
+      const boostSide = p['side'] as string
+      const newStacks = p['new_stacks'] as number
       console.log(
-        `${DIM}${side} Status failed on ${p['target_side'] as string}: ${p['reason'] as string}${RESET}`
+        `${YELLOW}${getName(boostSide)}'s Speed Boost activated! (${newStacks} stack${newStacks === 1 ? '' : 's'})${RESET}`
       )
       break
-
-    case 'ACTION_FROZEN_FAILED':
-      console.log(`${YELLOW}${side} is frozen solid!${RESET}`)
-      break
-
-    case 'ACTION_PARALYSIS_FAILED':
-      console.log(`${YELLOW}${side} is paralysed and can't move!${RESET}`)
-      break
-
-    case 'BURN_DAMAGE':
-      console.log(
-        `${RED}${side} Burn damage: ${p['damage'] as number}${RESET} ${DIM}(${p['remaining_hp'] as number} HP remaining)${RESET}`
-      )
-      break
+    }
 
     default:
       console.log(
@@ -178,8 +255,13 @@ function runMode(seed: number, a: string, b: string): void {
   const inputs = buildInputs(seed, a, b)
   const artifact = runBattle(inputs)
 
+  const getName = (side: string): string =>
+    side === 'a'
+      ? getSpeciesById(artifact.side_a_species_id).name
+      : getSpeciesById(artifact.side_b_species_id).name
+
   for (const event of artifact.events) {
-    printEvent(event)
+    printEvent(event, getName)
   }
 
   console.log('')

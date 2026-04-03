@@ -47,6 +47,7 @@ function buildBattleMon(species: Species, moveset: [Move, Move, Move, Move]): Ba
     moveset,
     status: null,
     speed_boost_stacks: 0,
+    sturdy_used: false,
   }
 }
 
@@ -69,6 +70,7 @@ function resolveAction(
     const thawDraw = rng.drawThaw()
     if (thawDraw === CONSTANTS.THAWS_ON) {
       actor.status = null
+      events.push({ event_type: 'THAW_SUCCESS', payload: { actor_side: actorSide } })
     } else {
       events.push({ event_type: 'ACTION_FROZEN_FAILED', actor_side: actorSide, payload: {} })
       return { battleOver: false }
@@ -152,10 +154,16 @@ function resolveAction(
     const rawNewHp = target.current_hp - damage
 
     // Resolve ON_SURVIVE_LETHAL
+    let sturdyActivated = false
     if (rawNewHp <= 0) {
-      const surviveResult = applyAbility(target.ability_id, 'ON_SURVIVE_LETHAL', { self: target })
+      // Guard: skip ability call if sturdy_used is already true (once per battle)
+      const surviveResult = target.sturdy_used
+        ? {}
+        : applyAbility(target.ability_id, 'ON_SURVIVE_LETHAL', { self: target })
       if (surviveResult.survive_lethal) {
         target.current_hp = 1
+        target.sturdy_used = true
+        sturdyActivated = true
       } else {
         target.current_hp = 0
       }
@@ -186,6 +194,11 @@ function resolveAction(
         remaining_hp: target.current_hp,
       },
     })
+
+    // 4f.1 — Emit STURDY_ACTIVATED immediately after DAMAGE_DEALT if Sturdy fired
+    if (sturdyActivated) {
+      events.push({ event_type: 'STURDY_ACTIVATED', payload: { side: targetSide } })
+    }
 
     // 4g — Check for faint
     if (target.current_hp === 0) {
@@ -234,7 +247,7 @@ function resolveAction(
           actor_side: actorSide,
           payload: {
             target_side: targetSide,
-            reason: alreadyStatused ? 'already_statused' : 'blocked_by_ability',
+            reason: alreadyStatused ? 'already_statused' : 'immunity_ability',
           },
         })
       }
@@ -356,32 +369,7 @@ export function runBattle(inputs: KernelInputs): BattleArtifact {
   const monA = buildBattleMon(speciesA, movesetA)
   const monB = buildBattleMon(speciesB, movesetB)
 
-  // 5. Apply ON_BATTLE_START abilities — side A then side B
-  const startResultA = applyAbility(monA.ability_id, 'ON_BATTLE_START', {
-    self: monA,
-    opponent: monB,
-  })
-  if (startResultA.modified_atk !== undefined) {
-    if (monA.ability_id === 'huge_power') {
-      monA.base_atk = startResultA.modified_atk
-    } else if (monA.ability_id === 'intimidate') {
-      monB.base_atk = startResultA.modified_atk
-    }
-  }
-
-  const startResultB = applyAbility(monB.ability_id, 'ON_BATTLE_START', {
-    self: monB,
-    opponent: monA,
-  })
-  if (startResultB.modified_atk !== undefined) {
-    if (monB.ability_id === 'huge_power') {
-      monB.base_atk = startResultB.modified_atk
-    } else if (monB.ability_id === 'intimidate') {
-      monA.base_atk = startResultB.modified_atk
-    }
-  }
-
-  // 6. Emit BATTLE_START
+  // 5. Emit BATTLE_START before ability application
   const events: BattleEvent[] = []
   events.push({
     event_type: 'BATTLE_START',
@@ -392,6 +380,83 @@ export function runBattle(inputs: KernelInputs): BattleArtifact {
       side_b_moveset: monB.moveset,
     },
   })
+
+  // 6. Apply ON_BATTLE_START abilities — side A then side B, emitting ABILITY_TRIGGERED
+  const startResultA = applyAbility(monA.ability_id, 'ON_BATTLE_START', {
+    self: monA,
+    opponent: monB,
+  })
+  if (startResultA.modified_atk !== undefined) {
+    if (monA.ability_id === 'huge_power') {
+      const oldAtk = monA.base_atk
+      monA.base_atk = startResultA.modified_atk
+      events.push({
+        event_type: 'ABILITY_TRIGGERED',
+        payload: {
+          actor_side: 'a' as Side,
+          ability_id: monA.ability_id,
+          trigger: 'ON_BATTLE_START',
+          affected_side: 'a' as Side,
+          stat: 'atk',
+          old_value: oldAtk,
+          new_value: startResultA.modified_atk,
+        },
+      })
+    } else if (monA.ability_id === 'intimidate') {
+      const oldAtk = monB.base_atk
+      monB.base_atk = startResultA.modified_atk
+      events.push({
+        event_type: 'ABILITY_TRIGGERED',
+        payload: {
+          actor_side: 'a' as Side,
+          ability_id: monA.ability_id,
+          trigger: 'ON_BATTLE_START',
+          affected_side: 'b' as Side,
+          stat: 'atk',
+          old_value: oldAtk,
+          new_value: startResultA.modified_atk,
+        },
+      })
+    }
+  }
+
+  const startResultB = applyAbility(monB.ability_id, 'ON_BATTLE_START', {
+    self: monB,
+    opponent: monA,
+  })
+  if (startResultB.modified_atk !== undefined) {
+    if (monB.ability_id === 'huge_power') {
+      const oldAtk = monB.base_atk
+      monB.base_atk = startResultB.modified_atk
+      events.push({
+        event_type: 'ABILITY_TRIGGERED',
+        payload: {
+          actor_side: 'b' as Side,
+          ability_id: monB.ability_id,
+          trigger: 'ON_BATTLE_START',
+          affected_side: 'b' as Side,
+          stat: 'atk',
+          old_value: oldAtk,
+          new_value: startResultB.modified_atk,
+        },
+      })
+    } else if (monB.ability_id === 'intimidate') {
+      const oldAtk = monA.base_atk
+      monA.base_atk = startResultB.modified_atk
+      events.push({
+        event_type: 'ABILITY_TRIGGERED',
+        payload: {
+          actor_side: 'b' as Side,
+          ability_id: monB.ability_id,
+          trigger: 'ON_BATTLE_START',
+          affected_side: 'a' as Side,
+          stat: 'atk',
+          old_value: oldAtk,
+          new_value: startResultB.modified_atk,
+        },
+      })
+    }
+  }
 
   // 7. Turn loop
   let turn = 0
@@ -504,11 +569,20 @@ export function runBattle(inputs: KernelInputs): BattleArtifact {
 
       // b. ON_TURN_END ability (only if mon alive)
       if (entry.mon.current_hp > 0) {
+        const prevStacks = entry.mon.speed_boost_stacks
         const turnEndResult = applyAbility(entry.mon.ability_id, 'ON_TURN_END', {
           self: entry.mon,
         })
         if (turnEndResult.new_speed_boost_stacks !== undefined) {
           entry.mon.speed_boost_stacks = turnEndResult.new_speed_boost_stacks
+          // Emit SPEED_BOOST_STACKED only if stacks actually incremented.
+          // When already at cap (5 stacks), handleSpeedBoost returns the same value — no event.
+          if (entry.mon.speed_boost_stacks > prevStacks) {
+            events.push({
+              event_type: 'SPEED_BOOST_STACKED',
+              payload: { side: entry.side, new_stacks: entry.mon.speed_boost_stacks },
+            })
+          }
         }
       }
     }

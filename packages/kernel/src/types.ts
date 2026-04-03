@@ -2,6 +2,7 @@ export type BeastMonType = 'fire' | 'grass' | 'water' | 'ice' | 'dragon'
 export type MoveCategory = 'damage' | 'damage_plus_status' | 'pure_status'
 export type StatusEffect = 'burn' | 'paralysis' | 'freeze'
 export type StatusApplicationMode = 'guaranteed' | 'rolled'
+export type DamageStat = 'atk' | 'speed'
 export type Side = 'a' | 'b'
 
 export type StatusFailedReason =
@@ -19,6 +20,7 @@ export interface Move {
   accuracy: number
   priority: number
   crit_enabled: boolean
+  damage_stat: DamageStat
   inflicted_status: StatusEffect | null
   status_application_mode: StatusApplicationMode | null
   status_proc_numerator: number | null

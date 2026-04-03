@@ -36,6 +36,7 @@ const baseMove: Move = {
   accuracy: 100,
   priority: 0,
   crit_enabled: true,
+  damage_stat: 'atk',
   inflicted_status: null,
   status_application_mode: null,
   status_proc_numerator: null,

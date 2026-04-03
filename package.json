@@ -11,7 +11,8 @@
     "test": "npm run test --workspaces --if-present",
     "dev:server": "npm run dev --workspace=packages/server",
     "dev:client": "npm run dev --workspace=packages/client",
-    "battle": "tsx scripts/battle.ts"
+    "battle": "tsx scripts/battle.ts",
+    "stats": "tsx scripts/stats.ts"
   },
   "devDependencies": {
     "tsx": "^4.21.0"

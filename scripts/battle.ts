@@ -39,12 +39,13 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   // First positional arg is mode
   if (args.length > 0 && !args[0]!.startsWith('--')) {
+    // safe: args.length > 0 guarantees shift() returns a string
     defaults.mode = args.shift()!
   }
 
   // Parse named flags
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!
+    const arg = args[i]!  // safe: i < args.length guarantees index is in bounds
     const next = args[i + 1]
     if (arg === '--seed' && next !== undefined) {
       defaults.seed = parseInt(next, 10)

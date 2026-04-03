@@ -372,7 +372,7 @@ describe('SPEED_BOOST_STACKED', () => {
 
 describe('STATUS_FAILED reason', () => {
   it('STATUS_FAILED reason is always one of the valid values', () => {
-    const validReasons = new Set(['already_statused', 'immunity_ability', 'type_immunity'])
+    const validReasons = new Set(['already_statused', 'proc_failed', 'immunity_ability', 'type_immunity'])
     for (let seed = 1; seed <= 500; seed++) {
       const artifact = runBattle({ ...testInputs, seed })
       for (const e of artifact.events.filter(e => e.event_type === 'STATUS_FAILED')) {

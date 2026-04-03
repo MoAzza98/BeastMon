@@ -808,18 +808,19 @@ function main(): void {
   process.stdout.write('\r' + ' '.repeat(80) + '\r')
   console.log(`${GREEN}${BOLD}All ${matchupPairs.length * args.seeds} battles complete.${RESET}`)
 
-  // Print summary table (always)
-  printSummaryTable(allMatchups)
-
-  // Species aggregation
   const allSpecies = speciesIds.map((id) => aggregateSpecies(id, allMatchups))
-  printSpeciesOverview(allSpecies)
-  printMoveHealth(allMatchups)
 
-  // Full mode
+  // Full mode details first (most granular data)
   if (args.mode === 'full') {
     printFullDetails(allMatchups)
   }
+
+  // Species overview and move health
+  printSpeciesOverview(allSpecies)
+  printMoveHealth(allMatchups)
+
+  // Summary table last
+  printSummaryTable(allMatchups)
 
   // JSON output
   if (args.json) {

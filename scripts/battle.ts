@@ -1,0 +1,326 @@
+import { runBattle } from '../packages/kernel/src/index.js'
+import { SPECIES, getSpeciesById } from '../packages/kernel/src/species.js'
+import type { BattleEvent, KernelInputs } from '../packages/kernel/src/types.js'
+
+// ---------------------------------------------------------------------------
+// ANSI colour codes
+// ---------------------------------------------------------------------------
+
+const RESET = '\x1b[0m'
+const BOLD = '\x1b[1m'
+const DIM = '\x1b[2m'
+const RED = '\x1b[31m'
+const GREEN = '\x1b[32m'
+const YELLOW = '\x1b[33m'
+const CYAN = '\x1b[36m'
+const WHITE = '\x1b[37m'
+
+// ---------------------------------------------------------------------------
+// Arg parsing
+// ---------------------------------------------------------------------------
+
+interface ParsedArgs {
+  mode: string
+  seed: number
+  a: string
+  b: string
+}
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const speciesIds = Object.keys(SPECIES)
+  const defaults: ParsedArgs = {
+    mode: 'run',
+    seed: 1,
+    a: speciesIds[0]!,  // safe: SPECIES always has at least 5 entries
+    b: speciesIds[1]!,  // safe: SPECIES always has at least 5 entries
+  }
+
+  const args = argv.slice(0)
+
+  // First positional arg is mode
+  if (args.length > 0 && !args[0]!.startsWith('--')) {
+    // safe: args.length > 0 guarantees shift() returns a string
+    defaults.mode = args.shift()!
+  }
+
+  // Parse named flags
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!  // safe: i < args.length guarantees index is in bounds
+    const next = args[i + 1]
+    if (arg === '--seed' && next !== undefined) {
+      defaults.seed = parseInt(next, 10)
+      i++
+    } else if (arg === '--a' && next !== undefined) {
+      defaults.a = next
+      i++
+    } else if (arg === '--b' && next !== undefined) {
+      defaults.b = next
+      i++
+    }
+  }
+
+  return defaults
+}
+
+// ---------------------------------------------------------------------------
+// Build kernel inputs
+// ---------------------------------------------------------------------------
+
+function buildInputs(seed: number, a: string, b: string): KernelInputs {
+  return {
+    engine_version: '1.0.0',
+    content_version: '1.0.0',
+    ruleset_version: '1.0.0',
+    seed,
+    side_a_species_id: a,
+    side_b_species_id: b,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Event printer
+// ---------------------------------------------------------------------------
+
+function printEvent(event: BattleEvent, getName: (side: string) => string): void {
+  const p = event.payload
+  const side = event.actor_side !== undefined ? `[${event.actor_side}]` : ''
+
+  switch (event.event_type) {
+    case 'BATTLE_START':
+      console.log(`${BOLD}${WHITE}${'='.repeat(60)}${RESET}`)
+      console.log(
+        `${BOLD}${WHITE}BATTLE START: ${p['side_a_species_id'] as string} vs ${p['side_b_species_id'] as string}${RESET}`
+      )
+      console.log(`${BOLD}${WHITE}${'='.repeat(60)}${RESET}`)
+      break
+
+    case 'BATTLE_END':
+      console.log(`${BOLD}${WHITE}${'='.repeat(60)}${RESET}`)
+      console.log(`${BOLD}${WHITE}BATTLE END — Winner: ${p['winner'] as string}${RESET}`)
+      console.log(`${BOLD}${WHITE}${'='.repeat(60)}${RESET}`)
+      break
+
+    case 'MOVE_SELECTED':
+      console.log(
+        `${CYAN}${side} Selected move: ${p['move_id'] as string} (slot ${p['slot'] as number})${RESET}`
+      )
+      break
+
+    case 'DAMAGE_DEALT':
+      console.log(
+        `${side} ${RED}Damage: ${p['damage'] as number}${RESET} to ${p['target_side'] as string} ${DIM}(${p['remaining_hp'] as number} HP remaining)${RESET}`
+      )
+      break
+
+    case 'CRIT':
+      console.log(`${YELLOW}${side} A critical hit!${RESET}`)
+      break
+
+    case 'TYPE_SUPER_EFFECTIVE':
+      console.log(`${GREEN}${side} It's super effective!${RESET}`)
+      break
+
+    case 'TYPE_RESISTED':
+      console.log(`${DIM}${side} It's not very effective...${RESET}`)
+      break
+
+    case 'TYPE_IMMUNE':
+      console.log(`${DIM}${side} It had no effect!${RESET}`)
+      break
+
+    case 'MON_FAINTED': {
+      const faintedSide = p['side'] as string
+      console.log(`${BOLD}${getName(faintedSide)} fainted!${RESET}`)
+      break
+    }
+
+    case 'MOVE_MISSED': {
+      const actorSide = event.actor_side as string
+      console.log(`${DIM}${side} ${getName(actorSide)}'s attack missed!${RESET}`)
+      break
+    }
+
+    case 'STATUS_APPLIED': {
+      const targetSide = p['target_side'] as string
+      const status = p['status'] as string
+      let statusMsg: string
+      if (status === 'burn') {
+        statusMsg = `${getName(targetSide)} was burned!`
+      } else if (status === 'paralysis') {
+        statusMsg = `${getName(targetSide)} was paralyzed! It may be unable to move!`
+      } else if (status === 'freeze') {
+        statusMsg = `${getName(targetSide)} was frozen solid!`
+      } else {
+        statusMsg = `${getName(targetSide)} was afflicted with ${status}!`
+      }
+      console.log(`${YELLOW}${side} ${statusMsg}${RESET}`)
+      break
+    }
+
+    case 'STATUS_FAILED': {
+      const reason = p['reason'] as string
+      const failTargetSide = p['target_side'] as string
+      let failMsg: string
+      if (reason === 'already_statused') {
+        failMsg = `But it already has a status condition — it failed!`
+      } else if (reason === 'proc_failed') {
+        failMsg = `The status effect didn't take hold.`
+      } else if (reason === 'immunity_ability') {
+        failMsg = `${getName(failTargetSide)}'s ability protected it from the status!`
+      } else if (reason === 'type_immunity') {
+        failMsg = `${getName(failTargetSide)} is immune to that status!`
+      } else {
+        failMsg = `Status failed: ${reason}`
+      }
+      console.log(`${DIM}${side} ${failMsg}${RESET}`)
+      break
+    }
+
+    case 'ACTION_FROZEN_FAILED': {
+      const frozenSide = event.actor_side as string
+      console.log(`${YELLOW}${side} ${getName(frozenSide)} is frozen solid and can't move!${RESET}`)
+      break
+    }
+
+    case 'ACTION_PARALYSIS_FAILED': {
+      const paraSide = event.actor_side as string
+      console.log(`${YELLOW}${side} ${getName(paraSide)} is paralyzed! It can't move!${RESET}`)
+      break
+    }
+
+    case 'BURN_DAMAGE': {
+      const burnSide = event.actor_side as string
+      console.log(
+        `${RED}${side} ${getName(burnSide)} is hurt by its burn! Damage: ${p['damage'] as number}${RESET} ${DIM}(${p['remaining_hp'] as number} HP remaining)${RESET}`
+      )
+      break
+    }
+
+    case 'THAW_SUCCESS': {
+      const thawSide = p['actor_side'] as string
+      console.log(`${YELLOW}${getName(thawSide)} thawed out!${RESET}`)
+      break
+    }
+
+    case 'ABILITY_TRIGGERED': {
+      const abilityId = p['ability_id'] as string
+      const abilityActorSide = p['actor_side'] as string
+      const affectedSide = p['affected_side'] as string
+      const oldValue = p['old_value'] as number
+      const newValue = p['new_value'] as number
+      if (abilityId === 'huge_power') {
+        console.log(
+          `${YELLOW}${getName(abilityActorSide)}'s Huge Power activated! Its Attack surged! (${oldValue} → ${newValue})${RESET}`
+        )
+      } else if (abilityId === 'intimidate') {
+        console.log(
+          `${YELLOW}${getName(abilityActorSide)}'s Intimidate triggered! ${getName(affectedSide)}'s Attack fell! (${oldValue} → ${newValue})${RESET}`
+        )
+      } else {
+        console.log(
+          `${YELLOW}${getName(abilityActorSide)}'s ${abilityId} triggered! (${oldValue} → ${newValue})${RESET}`
+        )
+      }
+      break
+    }
+
+    case 'STURDY_ACTIVATED': {
+      const sturdySide = p['side'] as string
+      console.log(`${YELLOW}${BOLD}${getName(sturdySide)} endured the hit with Sturdy! It hung on with 1 HP!${RESET}`)
+      break
+    }
+
+    case 'SPEED_BOOST_STACKED': {
+      const boostSide = p['side'] as string
+      const newStacks = p['new_stacks'] as number
+      console.log(
+        `${YELLOW}${getName(boostSide)}'s Speed Boost activated! (${newStacks} stack${newStacks === 1 ? '' : 's'})${RESET}`
+      )
+      break
+    }
+
+    default:
+      console.log(
+        `${DIM}${side} ${event.event_type}: ${JSON.stringify(p)}${RESET}`
+      )
+      break
+  }
+}
+
+// ---------------------------------------------------------------------------
+// run mode
+// ---------------------------------------------------------------------------
+
+function runMode(seed: number, a: string, b: string): void {
+  const inputs = buildInputs(seed, a, b)
+  const artifact = runBattle(inputs)
+
+  const getName = (side: string): string =>
+    side === 'a'
+      ? getSpeciesById(artifact.side_a_species_id).name
+      : getSpeciesById(artifact.side_b_species_id).name
+
+  for (const event of artifact.events) {
+    printEvent(event, getName)
+  }
+
+  console.log('')
+  console.log(`Total turns: ${artifact.total_turns}`)
+  console.log(
+    `Side A moveset: ${artifact.side_a_final_moveset.map((m) => m.move_id).join(', ')}`
+  )
+  console.log(
+    `Side B moveset: ${artifact.side_b_final_moveset.map((m) => m.move_id).join(', ')}`
+  )
+}
+
+// ---------------------------------------------------------------------------
+// verify mode
+// ---------------------------------------------------------------------------
+
+function verifyMode(seed: number, a: string, b: string): void {
+  const inputs = buildInputs(seed, a, b)
+  const artifact1 = runBattle(inputs)
+  const artifact2 = runBattle(inputs)
+
+  const json1 = JSON.stringify(artifact1)
+  const json2 = JSON.stringify(artifact2)
+
+  if (json1 === json2) {
+    console.log(
+      `${GREEN}${BOLD}DETERMINISM VERIFIED${RESET}`
+    )
+    console.log(
+      `${GREEN}Events: ${artifact1.events.length} | Winner: ${artifact1.winner} | Turns: ${artifact1.total_turns}${RESET}`
+    )
+  } else {
+    console.log(`${RED}${BOLD}DETERMINISM FAILURE${RESET}`)
+
+    // Find first divergent event
+    const maxLen = Math.max(artifact1.events.length, artifact2.events.length)
+    for (let i = 0; i < maxLen; i++) {
+      const e1 = JSON.stringify(artifact1.events[i])
+      const e2 = JSON.stringify(artifact2.events[i])
+      if (e1 !== e2) {
+        console.log(`${RED}First divergence at event index ${i}:${RESET}`)
+        console.log(`  Run 1: ${e1}`)
+        console.log(`  Run 2: ${e2}`)
+        break
+      }
+    }
+
+    process.exit(1)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+const parsed = parseArgs(process.argv.slice(2))
+
+if (parsed.mode === 'verify') {
+  verifyMode(parsed.seed, parsed.a, parsed.b)
+} else {
+  runMode(parsed.seed, parsed.a, parsed.b)
+}

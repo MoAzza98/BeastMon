@@ -10,6 +10,10 @@
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces --if-present",
     "dev:server": "npm run dev --workspace=packages/server",
-    "dev:client": "npm run dev --workspace=packages/client"
+    "dev:client": "npm run dev --workspace=packages/client",
+    "battle": "tsx scripts/battle.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
   }
 }

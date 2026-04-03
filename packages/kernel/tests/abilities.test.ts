@@ -16,6 +16,7 @@ function makeMon(overrides: Partial<BattleMon> = {}): BattleMon {
     moveset: [] as any, // abilities do not use moveset
     status: null,
     speed_boost_stacks: 0,
+    sturdy_used: false,
     ...overrides,
   }
 }

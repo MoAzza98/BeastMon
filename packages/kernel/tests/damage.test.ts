@@ -36,6 +36,7 @@ function makeMon(overrides: Partial<BattleMon>): BattleMon {
     moveset: [baseMove, baseMove, baseMove, baseMove] as BattleMon['moveset'],
     status: null,
     speed_boost_stacks: 0,
+    sturdy_used: false,
     ...overrides,
   }
 }

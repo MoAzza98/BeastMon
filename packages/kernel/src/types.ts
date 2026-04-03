@@ -4,6 +4,12 @@ export type StatusEffect = 'burn' | 'paralysis' | 'freeze'
 export type StatusApplicationMode = 'guaranteed' | 'rolled'
 export type Side = 'a' | 'b'
 
+export type StatusFailedReason =
+  | 'already_statused'
+  | 'proc_failed'
+  | 'immunity_ability'
+  | 'type_immunity'
+
 export interface Move {
   move_id: string
   name: string
@@ -46,6 +52,7 @@ export interface BattleMon {
   moveset: [Move, Move, Move, Move]
   status: StatusEffect | null
   speed_boost_stacks: number
+  sturdy_used: boolean
 }
 
 export type BattleEventType =
@@ -64,6 +71,10 @@ export type BattleEventType =
   | 'BURN_DAMAGE'
   | 'MON_FAINTED'
   | 'BATTLE_END'
+  | 'THAW_SUCCESS'
+  | 'ABILITY_TRIGGERED'
+  | 'STURDY_ACTIVATED'
+  | 'SPEED_BOOST_STACKED'
 
 export interface BattleEvent {
   event_type: BattleEventType

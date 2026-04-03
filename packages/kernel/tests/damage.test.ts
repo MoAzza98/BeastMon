@@ -16,6 +16,7 @@ const baseMove: Move = {
   accuracy: 100,
   priority: 0,
   crit_enabled: true,
+  damage_stat: 'atk',
   inflicted_status: null,
   status_application_mode: null,
   status_proc_numerator: null,
@@ -188,6 +189,51 @@ describe('effective defense', () => {
   it('min guard returns 1 for zero def', () => {
     const mon = makeMon({ base_def: 0 })
     expect(computeEffectiveDef(mon)).toBe(1)
+  })
+})
+
+// 4.9 Speed-Scaling Moves
+describe('4.9 Speed-Scaling Moves (damage_stat: speed)', () => {
+  it('speed-scaling move uses Speed as A: higher Speed produces higher damage than lower Speed (atk held constant)', () => {
+    const move: Move = { ...baseMove, power: 60, damage_stat: 'speed', type: 'fire', category: 'damage' }
+    const defender = makeMon({ base_def: 100 })
+    const fast = makeMon({ base_atk: 50, base_speed: 150, type: 'fire', status: null, speed_boost_stacks: 0 })
+    const slow = makeMon({ base_atk: 150, base_speed: 50, type: 'fire', status: null, speed_boost_stacks: 0 })
+    const dmgFast = computeDamage(fast, defender, move, 1, 1000, 1000)
+    const dmgSlow = computeDamage(slow, defender, move, 1, 1000, 1000)
+    expect(dmgFast).toBeGreaterThan(dmgSlow)
+  })
+
+  it('burn does not reduce damage on speed-scaling move', () => {
+    const move: Move = { ...baseMove, power: 60, damage_stat: 'speed', type: 'fire', category: 'damage' }
+    const defender = makeMon({ base_def: 100 })
+    const burned = makeMon({ base_speed: 100, type: 'fire', status: 'burn', speed_boost_stacks: 0 })
+    const unburned = makeMon({ base_speed: 100, type: 'fire', status: null, speed_boost_stacks: 0 })
+    const dmgBurned = computeDamage(burned, defender, move, 1, 1000, 1000)
+    const dmgUnburned = computeDamage(unburned, defender, move, 1, 1000, 1000)
+    expect(dmgBurned).toBe(dmgUnburned)
+  })
+
+  it('paralysis reduces damage on speed-scaling move via halved Speed', () => {
+    const move: Move = { ...baseMove, power: 60, damage_stat: 'speed', type: 'fire', category: 'damage' }
+    const defender = makeMon({ base_def: 100 })
+    const paralyzed = makeMon({ base_speed: 100, type: 'fire', status: 'paralysis', speed_boost_stacks: 0 })
+    const healthy = makeMon({ base_speed: 100, type: 'fire', status: null, speed_boost_stacks: 0 })
+    const dmgParalyzed = computeDamage(paralyzed, defender, move, 1, 1000, 1000)
+    const dmgHealthy = computeDamage(healthy, defender, move, 1, 1000, 1000)
+    expect(dmgParalyzed).toBeLessThan(dmgHealthy)
+  })
+
+  it('burn reduces damage on standard move (damage_stat=atk) but not on speed-scaling move', () => {
+    const atkMove: Move = { ...baseMove, power: 60, damage_stat: 'atk', type: 'fire', category: 'damage' }
+    const speedMove: Move = { ...baseMove, power: 60, damage_stat: 'speed', type: 'fire', category: 'damage' }
+    const defender = makeMon({ base_def: 100 })
+    const burned = makeMon({ base_atk: 100, base_speed: 100, type: 'fire', status: 'burn', speed_boost_stacks: 0 })
+    const unburned = makeMon({ base_atk: 100, base_speed: 100, type: 'fire', status: null, speed_boost_stacks: 0 })
+    expect(computeDamage(burned, defender, atkMove, 1, 1000, 1000))
+      .toBeLessThan(computeDamage(unburned, defender, atkMove, 1, 1000, 1000))
+    expect(computeDamage(burned, defender, speedMove, 1, 1000, 1000))
+      .toBe(computeDamage(unburned, defender, speedMove, 1, 1000, 1000))
   })
 })
 

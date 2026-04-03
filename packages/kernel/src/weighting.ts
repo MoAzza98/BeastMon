@@ -32,7 +32,9 @@ export function computeRoughDamage(
   move: Move,
   typeEffectiveness: number
 ): number {
-  const A = computeEffectiveAtk(attacker)
+  const A = move.damage_stat === 'speed'
+    ? computeEffectiveSpeed(attacker)
+    : computeEffectiveAtk(attacker)
   const D = computeEffectiveDef(defender)
 
   const r1 = move.power

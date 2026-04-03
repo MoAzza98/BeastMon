@@ -513,8 +513,8 @@ function aggregateSpecies(
   }
 
   let flag: string | null = null
-  if (overall_win_rate > 60) flag = 'HIGH'
-  else if (overall_win_rate < 40) flag = 'LOW'
+  if (overall_win_rate >= 60) flag = 'HIGH'
+  else if (overall_win_rate <= 40) flag = 'LOW'
 
   return {
     species_id: speciesId,
@@ -810,17 +810,17 @@ function main(): void {
 
   const allSpecies = speciesIds.map((id) => aggregateSpecies(id, allMatchups))
 
-  // Full mode details first (most granular data)
-  if (args.mode === 'full') {
-    printFullDetails(allMatchups)
-  }
+  // Summary table first
+  printSummaryTable(allMatchups)
 
   // Species overview and move health
   printSpeciesOverview(allSpecies)
   printMoveHealth(allMatchups)
 
-  // Summary table last
-  printSummaryTable(allMatchups)
+  // Full mode details last
+  if (args.mode === 'full') {
+    printFullDetails(allMatchups)
+  }
 
   // JSON output
   if (args.json) {

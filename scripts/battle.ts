@@ -63,6 +63,29 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 // ---------------------------------------------------------------------------
+// Random helpers
+// ---------------------------------------------------------------------------
+
+function randomSeed(): number {
+  // Generate a random 32-bit unsigned integer seed from system entropy
+  return Math.floor(Math.random() * 0xFFFFFFFF)
+}
+
+function randomSpecies(): string {
+  const ids = Object.keys(SPECIES)
+  const index = Math.floor(Math.random() * ids.length)
+  return ids[index]!  // safe: ids.length >= 5, index is always in bounds
+}
+
+function randomSpeciesPair(): [string, string] {
+  const ids = Object.keys(SPECIES)
+  const indexA = Math.floor(Math.random() * ids.length)
+  let indexB = Math.floor(Math.random() * (ids.length - 1))
+  if (indexB >= indexA) indexB++  // ensure B != A
+  return [ids[indexA]!, ids[indexB]!]  // safe: both indices are in bounds
+}
+
+// ---------------------------------------------------------------------------
 // Build kernel inputs
 // ---------------------------------------------------------------------------
 
@@ -314,6 +337,29 @@ function verifyMode(seed: number, a: string, b: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// random mode — random seed, user-specified (or default) species
+// ---------------------------------------------------------------------------
+
+function randomMode(a: string, b: string): void {
+  const seed = randomSeed()
+  console.log(`${DIM}Seed: ${seed}${RESET}`)
+  console.log('')
+  runMode(seed, a, b)
+}
+
+// ---------------------------------------------------------------------------
+// chaos mode — random seed AND random species
+// ---------------------------------------------------------------------------
+
+function chaosMode(): void {
+  const seed = randomSeed()
+  const [a, b] = randomSpeciesPair()
+  console.log(`${DIM}Seed: ${seed} | ${getSpeciesById(a).name} vs ${getSpeciesById(b).name}${RESET}`)
+  console.log('')
+  runMode(seed, a, b)
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -321,6 +367,10 @@ const parsed = parseArgs(process.argv.slice(2))
 
 if (parsed.mode === 'verify') {
   verifyMode(parsed.seed, parsed.a, parsed.b)
+} else if (parsed.mode === 'random') {
+  randomMode(parsed.a, parsed.b)
+} else if (parsed.mode === 'chaos') {
+  chaosMode()
 } else {
   runMode(parsed.seed, parsed.a, parsed.b)
 }

@@ -43,7 +43,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     defaults.mode = args.shift()!
   }
 
-  // Parse named flags
+  // Parse named flags and collect bare positional args
+  const positionals: string[] = []
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!  // safe: i < args.length guarantees index is in bounds
     const next = args[i + 1]
@@ -56,10 +57,44 @@ function parseArgs(argv: string[]): ParsedArgs {
     } else if (arg === '--b' && next !== undefined) {
       defaults.b = next
       i++
+    } else if (!arg.startsWith('--')) {
+      positionals.push(arg)
     }
   }
 
+  // Positional args after mode are treated as species A and B
+  // so `battle:random -- embrak torrentis` works without --a/--b flags
+  if (positionals.length >= 1) {
+    defaults.a = positionals[0]!  // safe: length >= 1
+  }
+  if (positionals.length >= 2) {
+    defaults.b = positionals[1]!  // safe: length >= 2
+  }
+
   return defaults
+}
+
+// ---------------------------------------------------------------------------
+// Random helpers
+// ---------------------------------------------------------------------------
+
+function randomSeed(): number {
+  // Generate a random 32-bit unsigned integer seed from system entropy
+  return Math.floor(Math.random() * 0xFFFFFFFF)
+}
+
+function randomSpecies(): string {
+  const ids = Object.keys(SPECIES)
+  const index = Math.floor(Math.random() * ids.length)
+  return ids[index]!  // safe: ids.length >= 5, index is always in bounds
+}
+
+function randomSpeciesPair(): [string, string] {
+  const ids = Object.keys(SPECIES)
+  const indexA = Math.floor(Math.random() * ids.length)
+  let indexB = Math.floor(Math.random() * (ids.length - 1))
+  if (indexB >= indexA) indexB++  // ensure B != A
+  return [ids[indexA]!, ids[indexB]!]  // safe: both indices are in bounds
 }
 
 // ---------------------------------------------------------------------------
@@ -314,6 +349,29 @@ function verifyMode(seed: number, a: string, b: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// random mode — random seed, user-specified (or default) species
+// ---------------------------------------------------------------------------
+
+function randomMode(a: string, b: string): void {
+  const seed = randomSeed()
+  console.log(`${DIM}Seed: ${seed}${RESET}`)
+  console.log('')
+  runMode(seed, a, b)
+}
+
+// ---------------------------------------------------------------------------
+// chaos mode — random seed AND random species
+// ---------------------------------------------------------------------------
+
+function chaosMode(): void {
+  const seed = randomSeed()
+  const [a, b] = randomSpeciesPair()
+  console.log(`${DIM}Seed: ${seed} | ${getSpeciesById(a).name} vs ${getSpeciesById(b).name}${RESET}`)
+  console.log('')
+  runMode(seed, a, b)
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -321,6 +379,10 @@ const parsed = parseArgs(process.argv.slice(2))
 
 if (parsed.mode === 'verify') {
   verifyMode(parsed.seed, parsed.a, parsed.b)
+} else if (parsed.mode === 'random') {
+  randomMode(parsed.a, parsed.b)
+} else if (parsed.mode === 'chaos') {
+  chaosMode()
 } else {
   runMode(parsed.seed, parsed.a, parsed.b)
 }

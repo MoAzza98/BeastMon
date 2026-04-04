@@ -1,4 +1,5 @@
 import { runBattle } from '../packages/kernel/src/index.js'
+import { getMoveById } from '../packages/kernel/src/moves.js'
 import { SPECIES, getSpeciesById } from '../packages/kernel/src/species.js'
 import type { BattleEvent, KernelInputs } from '../packages/kernel/src/types.js'
 
@@ -16,6 +17,60 @@ const CYAN = '\x1b[36m'
 const WHITE = '\x1b[37m'
 
 // ---------------------------------------------------------------------------
+// Sleep utility
+// ---------------------------------------------------------------------------
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+
+// ---------------------------------------------------------------------------
+// Cinematic display types and helpers
+// ---------------------------------------------------------------------------
+
+interface SideDisplay {
+  name: string
+  maxHp: number
+  currentHp: number
+  status: string | null
+}
+
+function renderHPBar(display: SideDisplay): string {
+  const filled = Math.floor((display.currentHp / display.maxHp) * 20)
+  const empty = 20 - filled
+
+  // Integer cross-multiplication for colour thresholds — no division
+  let colour: string
+  if (display.currentHp * 4 > display.maxHp * 2) {
+    colour = GREEN   // >50%
+  } else if (display.currentHp * 4 > display.maxHp) {
+    colour = YELLOW  // >25%, <=50%
+  } else {
+    colour = RED     // <=25%
+  }
+
+  const bar = `${colour}${'█'.repeat(filled)}${'░'.repeat(empty)}${RESET}`
+  const hp = `${colour}${display.currentHp}/${display.maxHp}${RESET} HP`
+  const nameCol = display.name.toUpperCase().padEnd(10)
+
+  let statusBadge = ''
+  if (display.status === 'burn') {
+    statusBadge = ` ${RED}[BRN]${RESET}`
+  } else if (display.status === 'paralysis') {
+    statusBadge = ` ${YELLOW}[PAR]${RESET}`
+  } else if (display.status === 'freeze') {
+    statusBadge = ` ${CYAN}[FRZ]${RESET}`
+  }
+
+  return `  ${nameCol}${bar}  ${hp}${statusBadge}`
+}
+
+function printBothBars(sideA: SideDisplay, sideB: SideDisplay): void {
+  console.log('')
+  console.log(renderHPBar(sideA))
+  console.log(renderHPBar(sideB))
+  console.log('')
+}
+
+// ---------------------------------------------------------------------------
 // Arg parsing
 // ---------------------------------------------------------------------------
 
@@ -24,6 +79,7 @@ interface ParsedArgs {
   seed: number
   a: string
   b: string
+  delay: number
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -33,6 +89,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     seed: 1,
     a: speciesIds[0]!,  // safe: SPECIES always has at least 5 entries
     b: speciesIds[1]!,  // safe: SPECIES always has at least 5 entries
+    delay: 800,
   }
 
   const args = argv.slice(0)
@@ -56,6 +113,9 @@ function parseArgs(argv: string[]): ParsedArgs {
       i++
     } else if (arg === '--b' && next !== undefined) {
       defaults.b = next
+      i++
+    } else if (arg === '--delay' && next !== undefined) {
+      defaults.delay = parseInt(next, 10)
       i++
     } else if (!arg.startsWith('--')) {
       positionals.push(arg)
@@ -372,6 +432,221 @@ function chaosMode(): void {
 }
 
 // ---------------------------------------------------------------------------
+// cinematic mode
+// ---------------------------------------------------------------------------
+
+async function cinematicMode(seed: number, a: string, b: string, delay: number): Promise<void> {
+  const inputs = buildInputs(seed, a, b)
+  const artifact = runBattle(inputs)
+
+  const getName = (side: string): string =>
+    side === 'a'
+      ? getSpeciesById(artifact.side_a_species_id).name
+      : getSpeciesById(artifact.side_b_species_id).name
+
+  let sideA: SideDisplay | null = null
+  let sideB: SideDisplay | null = null
+  let turnCount = 0
+  let pendingMoveA: string | null = null
+
+  for (const event of artifact.events) {
+    // payload is typed as Record<string, unknown>
+    const p = event.payload
+
+    switch (event.event_type) {
+      case 'BATTLE_START': {
+        const speciesA = getSpeciesById(p['side_a_species_id'] as string)
+        const speciesB = getSpeciesById(p['side_b_species_id'] as string)
+
+        sideA = {
+          name: speciesA.name,
+          maxHp: speciesA.base_hp,
+          currentHp: speciesA.base_hp,
+          status: null,
+        }
+        sideB = {
+          name: speciesB.name,
+          maxHp: speciesB.base_hp,
+          currentHp: speciesB.base_hp,
+          status: null,
+        }
+
+        // Header box — 48 inner characters
+        const title = `⚔  ${speciesA.name.toUpperCase()}  vs  ${speciesB.name.toUpperCase()}  ⚔`
+        const padded = title.padStart(Math.floor((48 + title.length) / 2)).padEnd(48)
+        console.log(`${BOLD}`)
+        console.log(`╔${'═'.repeat(48)}╗`)
+        console.log(`║${padded}║`)
+        console.log(`╚${'═'.repeat(48)}╝`)
+        console.log(`${RESET}`)
+
+        printBothBars(sideA, sideB)
+        await sleep(delay)
+        break
+      }
+
+      case 'MOVE_SELECTED': {
+        const actorSide = event.actor_side as string
+        const moveName = getMoveById(p['move_id'] as string).name // payload is typed as Record<string, unknown>
+
+        if (actorSide === 'a') {
+          turnCount++
+          console.log(`${DIM}${'━'.repeat(20)}  Turn ${turnCount}  ${'━'.repeat(20)}${RESET}`)
+          pendingMoveA = moveName
+        } else {
+          // Side B selection — print both moves
+          console.log(`  ${CYAN}${getName('a').toUpperCase()}${RESET}  →  ${pendingMoveA}`)
+          console.log(`  ${CYAN}${getName('b').toUpperCase()}${RESET}  →  ${moveName}`)
+          pendingMoveA = null
+          await sleep(Math.floor(delay / 2))
+        }
+        break
+      }
+
+      case 'CRIT':
+        console.log(`  ${YELLOW}✦ Critical hit!${RESET}`)
+        break
+
+      case 'TYPE_SUPER_EFFECTIVE':
+        console.log(`  ${GREEN}⚡ Super effective!${RESET}`)
+        break
+
+      case 'TYPE_RESISTED':
+        console.log(`  ${DIM}Not very effective...${RESET}`)
+        break
+
+      case 'TYPE_IMMUNE':
+        console.log(`  ${DIM}It had no effect.${RESET}`)
+        break
+
+      case 'DAMAGE_DEALT': {
+        const actorSide = event.actor_side as string
+        const targetSide = p['target_side'] as string // payload is typed as Record<string, unknown>
+        const damage = p['damage'] as number // payload is typed as Record<string, unknown>
+        const remainingHp = p['remaining_hp'] as number // payload is typed as Record<string, unknown>
+        const moveName = getMoveById(p['move_id'] as string).name // payload is typed as Record<string, unknown>
+
+        console.log(`  ${getName(actorSide).toUpperCase()} uses ${moveName}!`)
+        console.log(`  ${RED}${getName(targetSide).toUpperCase()} takes ${damage} damage!${RESET}`)
+
+        // Update target HP
+        const target = targetSide === 'a' ? sideA! : sideB! // safe: BATTLE_START always precedes DAMAGE_DEALT
+        target.currentHp = remainingHp
+
+        printBothBars(sideA!, sideB!)
+        await sleep(delay)
+        break
+      }
+
+      case 'BURN_DAMAGE': {
+        const burnSide = event.actor_side as string
+        const damage = p['damage'] as number // payload is typed as Record<string, unknown>
+        const remainingHp = p['remaining_hp'] as number // payload is typed as Record<string, unknown>
+
+        console.log(`  ${RED}🔥 ${getName(burnSide).toUpperCase()} is hurt by its burn!${RESET}`)
+        console.log(`  ${RED}${getName(burnSide).toUpperCase()} takes ${damage} damage!${RESET}`)
+
+        // Update burning mon HP
+        const burnMon = burnSide === 'a' ? sideA! : sideB! // safe: BATTLE_START always precedes BURN_DAMAGE
+        burnMon.currentHp = remainingHp
+
+        printBothBars(sideA!, sideB!)
+        await sleep(delay)
+        break
+      }
+
+      case 'STATUS_APPLIED': {
+        const targetSide = p['target_side'] as string // payload is typed as Record<string, unknown>
+        const status = p['status'] as string // payload is typed as Record<string, unknown>
+
+        // Update status on target
+        const target = targetSide === 'a' ? sideA! : sideB! // safe: BATTLE_START always precedes STATUS_APPLIED
+        target.status = status
+
+        let label: string
+        if (status === 'burn') {
+          label = '🔥 burned'
+        } else if (status === 'paralysis') {
+          label = '⚡ paralyzed'
+        } else if (status === 'freeze') {
+          label = '❄  frozen'
+        } else {
+          label = `afflicted with ${status}`
+        }
+        console.log(`  ${YELLOW}${getName(targetSide).toUpperCase()} was ${label}!${RESET}`)
+        break
+      }
+
+      case 'STATUS_FAILED':
+        console.log(`  ${DIM}Status had no effect.${RESET}`)
+        break
+
+      case 'ACTION_FROZEN_FAILED': {
+        const frozenSide = event.actor_side as string
+        console.log(`  ${CYAN}${getName(frozenSide).toUpperCase()} is frozen solid and can't move!${RESET}`)
+        await sleep(delay)
+        break
+      }
+
+      case 'ACTION_PARALYSIS_FAILED': {
+        const paraSide = event.actor_side as string
+        console.log(`  ${YELLOW}${getName(paraSide).toUpperCase()} is paralyzed! It can't move!${RESET}`)
+        await sleep(delay)
+        break
+      }
+
+      case 'MOVE_MISSED': {
+        const missActorSide = event.actor_side as string
+        const moveName = getMoveById(p['move_id'] as string).name // payload is typed as Record<string, unknown>
+        console.log(`  ${DIM}${getName(missActorSide).toUpperCase()}'s ${moveName} missed!${RESET}`)
+        await sleep(delay)
+        break
+      }
+
+      case 'MON_FAINTED': {
+        const faintedSide = p['side'] as string // payload is typed as Record<string, unknown>
+        console.log(`  ${BOLD}${getName(faintedSide).toUpperCase()} fainted!${RESET}`)
+        await sleep(delay)
+        break
+      }
+
+      case 'BATTLE_END': {
+        const winner = p['winner'] as string // payload is typed as Record<string, unknown>
+
+        if (winner === 'draw') {
+          console.log(`${BOLD}`)
+          console.log(`  It's a draw!`)
+          console.log(`${RESET}`)
+        } else {
+          const winnerName = getName(winner).toUpperCase()
+          const title = `🏆  ${winnerName}  wins!`
+          const padded = title.padStart(Math.floor((48 + title.length) / 2)).padEnd(48)
+          console.log(`${BOLD}`)
+          console.log(`╔${'═'.repeat(48)}╗`)
+          console.log(`║${padded}║`)
+          console.log(`╚${'═'.repeat(48)}╝`)
+          console.log(`${RESET}`)
+        }
+
+        console.log(`  Turns: ${artifact.total_turns}`)
+        console.log(`  Seed:  ${seed}`)
+        break
+      }
+
+      default:
+        // Graceful handling for events not specified in cinematic spec
+        // (THAW_SUCCESS, ABILITY_TRIGGERED, STURDY_ACTIVATED, SPEED_BOOST_STACKED)
+        if (event.actor_side !== undefined) {
+          console.log(`  ${DIM}${getName(event.actor_side)}: ${event.event_type}${RESET}`)
+        } else {
+          console.log(`  ${DIM}${event.event_type}${RESET}`)
+        }
+        break
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -383,6 +658,8 @@ if (parsed.mode === 'verify') {
   randomMode(parsed.a, parsed.b)
 } else if (parsed.mode === 'chaos') {
   chaosMode()
+} else if (parsed.mode === 'cinematic') {
+  void cinematicMode(parsed.seed, parsed.a, parsed.b, parsed.delay)
 } else {
   runMode(parsed.seed, parsed.a, parsed.b)
 }

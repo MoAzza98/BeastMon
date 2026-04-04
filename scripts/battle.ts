@@ -43,7 +43,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     defaults.mode = args.shift()!
   }
 
-  // Parse named flags
+  // Parse named flags and collect bare positional args
+  const positionals: string[] = []
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!  // safe: i < args.length guarantees index is in bounds
     const next = args[i + 1]
@@ -56,7 +57,18 @@ function parseArgs(argv: string[]): ParsedArgs {
     } else if (arg === '--b' && next !== undefined) {
       defaults.b = next
       i++
+    } else if (!arg.startsWith('--')) {
+      positionals.push(arg)
     }
+  }
+
+  // Positional args after mode are treated as species A and B
+  // so `battle:random -- embrak torrentis` works without --a/--b flags
+  if (positionals.length >= 1) {
+    defaults.a = positionals[0]!  // safe: length >= 1
+  }
+  if (positionals.length >= 2) {
+    defaults.b = positionals[1]!  // safe: length >= 2
   }
 
   return defaults

@@ -14,7 +14,8 @@
     "battle": "tsx scripts/battle.ts",
     "battle:random": "tsx scripts/battle.ts random",
     "battle:chaos": "tsx scripts/battle.ts chaos",
-    "stats": "tsx scripts/stats.ts"
+    "stats": "tsx scripts/stats.ts",
+    "winlines": "tsx scripts/winlines.ts"
   },
   "devDependencies": {
     "tsx": "^4.21.0"

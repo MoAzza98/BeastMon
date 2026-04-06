@@ -25,7 +25,7 @@ export const SPECIES = {
     ability_id: 'sturdy',
     signature_move_1: 'thorn_lash',
     signature_move_2: 'spore_cloud',
-    variable_pool: ['solar_strike', 'razor_leaf', 'vine_whip', 'temporal_claw', 'hydro_pump', 'ice_beam'],
+    variable_pool: ['solar_strike', 'razor_leaf', 'vine_whip', 'dragon_pulse', 'hydro_pump', 'ice_beam'],
   },
   torrentis: {
     species_id: 'torrentis',
@@ -38,7 +38,7 @@ export const SPECIES = {
     ability_id: 'intimidate',
     signature_move_1: 'hydro_slam',
     signature_move_2: 'riptide',
-    variable_pool: ['hydro_pump', 'water_pulse', 'icy_wind', 'ice_beam', 'temporal_claw', 'stun_spore'],
+    variable_pool: ['hydro_pump', 'water_pulse', 'icy_wind', 'ice_beam', 'dragon_pulse', 'stun_spore'],
   },
   glacior: {
     species_id: 'glacior',

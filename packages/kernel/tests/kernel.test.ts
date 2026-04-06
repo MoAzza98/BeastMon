@@ -152,12 +152,9 @@ describe('7.5 Move counts', () => {
 
 describe('7.6 Known seed regression', () => {
   it('seed 1 with embrak vs drakonyx produces known winner', () => {
-    // Verified via manual trace:
-    // Turn 1: embrak fire_blast (resisted, 37 dmg) → drakonyx dragon_rage misses
-    // Turn 2: embrak searing_fang (21 dmg, burns drakonyx) → drakonyx scale_storm (79 dmg)
-    //         → end-of-turn burn on drakonyx (12 dmg)
-    // Turn 3: embrak searing_fang (21 dmg) → drakonyx fire_blast (81 dmg, KOs embrak)
-    // Winner: b (drakonyx)
+    // Re-verified after content fix (temporal_claw → dragon_pulse):
+    // Variable pool change alters move rolls, shifting battle outcome.
+    // Winner: a (embrak)
     const artifact = runBattle({
       engine_version: '1.0.0',
       content_version: '1.0.0',
@@ -166,7 +163,7 @@ describe('7.6 Known seed regression', () => {
       side_a_species_id: 'embrak',
       side_b_species_id: 'drakonyx',
     })
-    expect(artifact.winner).toBe('b')
+    expect(artifact.winner).toBe('a')
   })
 })
 

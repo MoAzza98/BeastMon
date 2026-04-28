@@ -4,3 +4,8 @@ dist
 coverage/
 .env
 .env.local
+
+# Codex local state (don't commit user-specific state)
+.codex/rules/
+.codex/sessions/
+.codex/log/
